@@ -2,12 +2,9 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <StartupObject>Program</StartupObject>
-    <AssemblyName>srv-02</AssemblyName>
+    <TargetFramework>netcoreapp6</TargetFramework>
+		<StartupObject>Program</StartupObject>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <PublishSingleFile>false</PublishSingleFile>
-    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
 </Project>
