@@ -1,0 +1,83 @@
+name: Deploy .NET Service to AWS EC2
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '6.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    # Add tests here if you have any
+    # - name: Test
+    #   run: dotnet test --no-build --verbosity normal
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.PRIVATE_KEY }}
+        port: 22
+        script: |
+          echo "Starting deployment..."
+          
+          # Navigate to application directory
+          cd /home/ubuntu/srv-02
+          
+          # Stop the service
+          sudo systemctl stop srv-02
+          
+          # Backup current version (optional)
+          sudo cp -r bin bin.backup.$(date +%Y%m%d_%H%M%S) || true
+          
+          # Pull latest changes
+          git fetch origin
+          git reset --hard origin/main
+          
+          # Build the application
+          export DOTNET_CLI_HOME=/tmp
+          dotnet publish -c Release --self-contained=false --runtime linux-x64
+          
+          # Restart the service
+          sudo systemctl start srv-02
+          
+          # Wait a moment and check if service is running
+          sleep 5
+          if sudo systemctl is-active --quiet srv-02; then
+            echo "✅ Service started successfully"
+            # Test the endpoint
+            curl -f http://localhost:8002 || echo "⚠️  Service responding but might have issues"
+          else
+            echo "❌ Service failed to start"
+            sudo systemctl status srv-02
+            exit 1
+          fi
+          
+          echo "Deployment completed!"
